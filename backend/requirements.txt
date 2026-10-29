@@ -1,0 +1,17 @@
+# Web framework & ASGI server
+fastapi>=0.159.0
+uvicorn[standard]>=0.54.0
+
+# ORM & driver PostgreSQL
+sqlalchemy>=2.1.0
+psycopg[binary]>=3.3.0
+pydantic-settings>=2.16.0
+
+# Xử lý dữ liệu & học máy
+pandas>=3.0.0
+scikit-learn>=1.9.0
+underthesea>=9.5.0
+openpyxl>=3.1.0
+
+# Hỗ trợ upload form-data / file
+python-multipart>=0.0.32

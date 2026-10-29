@@ -1,0 +1,43 @@
+# Môi trường Python ảo
+.venv/
+venv/
+
+# Biến môi trường (chứa mật khẩu) - KHÔNG commit lên Git
+.env
+.env.local
+.env.*.local
+
+# Cache / file biên dịch Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Thư mục build / phân phối
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Công cụ kiểm thử và lint
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# File tạm của hệ điều hành và IDE
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+
+# File dữ liệu upload / xuất nháp
+uploads/
+*.xlsx.tmp
