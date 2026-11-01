@@ -1,7 +1,11 @@
-#Đề tài: Hệ thống thu thập và phân tích thông minh phản hồi của sinh viên về học phần đã học
+##Đề tài: Hệ thống thu thập và phân tích thông minh phản hồi của sinh viên về học phần đã học
+
 Giảng viên hướng dẫn: TS. Nguyễn Nhứt Lam
+
 Sinh viên thực hiện: Nguyễn Thị Thúy Duy
+
 MSSV: 110123081
+
 Lớp: DA23TTB
 
 Hệ thống là website cho phép sinh viên đánh giá các học phần đã học (thang điểm + nhận xét
