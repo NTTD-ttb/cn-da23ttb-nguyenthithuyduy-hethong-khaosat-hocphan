@@ -1,6 +1,8 @@
-# Hệ thống thu thập và phân tích thông minh phản hồi của sinh viên về học phần đã học
-
-Đồ án chuyên ngành — Trường Kỹ thuật và Công nghệ, Đại học Trà Vinh.
+#Đề tài: Hệ thống thu thập và phân tích thông minh phản hồi của sinh viên về học phần đã học
+Giảng viên hướng dẫn: TS. Nguyễn Nhứt Lam
+Sinh viên thực hiện: Nguyễn Thị Thúy Duy
+MSSV: 110123081
+Lớp: DA23TTB
 
 Hệ thống là website cho phép sinh viên đánh giá các học phần đã học (thang điểm + nhận xét
 văn bản), sau đó phân tích phản hồi bằng NLP (phân tích cảm xúc, phân loại chủ đề) và
@@ -76,7 +78,7 @@ Kiểm tra:
 | `DB_PORT` | Cổng PostgreSQL | `5432` |
 | `DB_NAME` | Tên cơ sở dữ liệu | `HeThongKhaoSat` |
 | `DB_USER` | Tài khoản đăng nhập CSDL | `postgres` |
-| `DB_PASSWORD` | Mật khẩu CSDL (không commit) | — |
+| `DB_PASSWORD` | Mật khẩu CSDL | — |
 | `CORS_ORIGINS` | Origin frontend được phép gọi API, phân tách bằng dấu phẩy | `http://localhost:5173,http://127.0.0.1:5173` |
 
 ## Chạy frontend
@@ -98,15 +100,4 @@ npm run dev
   (chứa MSSV, họ tên, ảnh đại diện của sinh viên).
 - Báo cáo phân tích không được hiển thị danh tính sinh viên.
 
-## Tiến độ
-
-- [x] Giai đoạn 0 — Hạ tầng code: cấu hình, kết nối CSDL dùng chung, CORS, cấu trúc package.
-- [ ] Giai đoạn 1 — Script CSDL (schema.sql, seed.sql) và ERD.
-- [ ] Giai đoạn 2 — Xác thực và phân quyền (sinh viên / quản trị viên).
-- [ ] Giai đoạn 3 — Quản lý dữ liệu đào tạo và người dùng.
-- [ ] Giai đoạn 4 — Nhập dữ liệu đăng ký học phần từ CSV/XLSX.
-- [ ] Giai đoạn 5 — Đợt khảo sát, làm khảo sát và theo dõi tiến độ.
-- [ ] Giai đoạn 6 — Mô hình NLP và tích hợp phân tích phản hồi.
-- [ ] Giai đoạn 7 — Dashboard thống kê và phân tích.
-- [ ] Giai đoạn 8 — Kiểm thử, hoàn thiện và báo cáo.
 
