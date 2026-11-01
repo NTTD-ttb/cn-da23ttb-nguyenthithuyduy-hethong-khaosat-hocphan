@@ -1,0 +1,67 @@
+# =====================================================================
+# .gitignore gốc của dự án
+# (backend/.gitignore vẫn giữ các quy tắc riêng cho Python)
+# =====================================================================
+
+# ------------------- Python -------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+
+# ------------------- Biến môi trường (chứa mật khẩu) -------------------
+.env
+.env.local
+.env.*.local
+
+# ------------------- Dữ liệu người dùng: KHÔNG commit -------------------
+# Thư mục storage chứa file đăng ký học phần (MSSV, họ tên),
+# ảnh đại diện và file thống kê xuất ra => là dữ liệu cá nhân.
+# Chỉ giữ lại .gitkeep để Git theo dõi thư mục.
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+backend/storage/exports/*
+!backend/storage/exports/.gitkeep
+backend/storage/avatars/*
+!backend/storage/avatars/.gitkeep
+backend/storage/**/*.xlsx
+backend/storage/**/*.xls
+backend/storage/**/*.csv
+
+# ------------------- Dữ liệu và mô hình NLP sinh ra khi huấn luyện -------------------
+backend/app/nlp/datasets/*
+!backend/app/nlp/datasets/.gitkeep
+backend/app/nlp/saved_models/*
+!backend/app/nlp/saved_models/.gitkeep
+
+# ------------------- Node / React -------------------
+node_modules/
+frontend/dist/
+frontend/build/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ------------------- Công cụ kiểm thử / lint -------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ------------------- IDE / Hệ điều hành -------------------
+.vscode/
+.idea/
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+Thumbs.db
+desktop.ini

@@ -6,105 +6,42 @@ Cách chạy (từ thư mục backend/):
     uvicorn app.main:app --reload --port 8000
 
 Tài liệu API tự sinh: http://127.0.0.1:8000/docs
+
+Ghi chú kiến trúc:
+- Cấu hình (đọc từ .env)      -> app/core/config.py
+- Kết nối CSDL                -> app/core/database.py
+- File này CHỈ làm 3 việc: tạo app, gắn middleware, gắn router.
+  Không đặt Settings/engine tại đây để router và model không phải import
+  ngược lại file này (nguyên nhân gây lỗi import vòng).
 """
 
-from pathlib import Path
-
 from fastapi import FastAPI
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy import URL, create_engine, text
+from fastapi.middleware.cors import CORSMiddleware
 
-# ---------------------------------------------------------------------------
-# 1. Đường dẫn gốc của backend (chính là thư mục chứa file .env)
-#    main.py nằm ở backend/app/main.py -> parent = app/, parent.parent = backend/
-# ---------------------------------------------------------------------------
-BACKEND_DIR = Path(__file__).resolve().parent.parent
+from app.core.config import settings
+from app.routers import system
 
-
-# ---------------------------------------------------------------------------
-# 2. Cấu hình đọc từ file backend/.env
-#    Không ghi mật khẩu trực tiếp trong mã nguồn.
-# ---------------------------------------------------------------------------
-class Settings(BaseSettings):
-    DB_HOST: str = "localhost"
-    DB_PORT: int = 5432
-    DB_NAME: str = "HeThongKhaoSat"
-    DB_USER: str = "postgres"
-    DB_PASSWORD: str = ""
-
-    model_config = SettingsConfigDict(
-        env_file=BACKEND_DIR / ".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-
-settings = Settings()
-
-# Tạo URL kết nối bằng URL.create để không phải tự mã hóa ký tự đặc biệt
-# trong mật khẩu. Driver "psycopg" là psycopg phiên bản 3.
-DATABASE_URL = URL.create(
-    drivername="postgresql+psycopg",
-    username=settings.DB_USER,
-    password=settings.DB_PASSWORD,
-    host=settings.DB_HOST,
-    port=settings.DB_PORT,
-    database=settings.DB_NAME,
-)
-
-# Engine quản lý connection pool tới PostgreSQL.
-# pool_pre_ping=True: tự kiểm tra kết nối còn sống trước khi dùng.
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-
-
-# ---------------------------------------------------------------------------
-# 3. Khởi tạo ứng dụng FastAPI
-# ---------------------------------------------------------------------------
 app = FastAPI(
     title="Hệ thống khảo sát học phần",
     description="API thu thập và phân tích phản hồi của sinh viên về học phần.",
     version="0.1.0",
 )
 
+# ---------------------------------------------------------------------------
+# CORS: cho phép frontend React (mặc định http://localhost:5173) gọi API.
+# Thiếu phần này, trình duyệt sẽ chặn request dù API vẫn đúng khi test
+# bằng Postman/curl.
+# ---------------------------------------------------------------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.get("/", tags=["Hệ thống"])
-def read_root() -> dict:
-    """Kiểm tra nhanh backend đã chạy chưa."""
-    return {
-        "message": "Backend đang hoạt động.",
-        "docs": "/docs",
-    }
-
-
-@app.get("/api/health", tags=["Hệ thống"])
-def health_check() -> dict:
-    """
-    Kiểm tra kết nối PostgreSQL bằng SQLAlchemy + `SELECT 1`.
-
-    Luôn trả về HTTP 200 kèm trạng thái, để phía frontend dễ hiển thị.
-    Không trả về mật khẩu hay chuỗi kết nối đầy đủ.
-    """
-    try:
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
-    except Exception as exc:  # noqa: BLE001 - cần bắt mọi lỗi kết nối
-        return {
-            "status": "error",
-            "database": "disconnected",
-            "host": settings.DB_HOST,
-            "port": settings.DB_PORT,
-            "name": settings.DB_NAME,
-            "error_type": type(exc).__name__,
-            "hint": (
-                "Kiểm tra PostgreSQL đã chạy, thông tin trong backend/.env "
-                "và database đã được tạo hay chưa."
-            ),
-        }
-
-    return {
-        "status": "ok",
-        "database": "connected",
-        "host": settings.DB_HOST,
-        "port": settings.DB_PORT,
-        "name": settings.DB_NAME,
-    }
+# ---------------------------------------------------------------------------
+# Đăng ký các router. Router của các chức năng nghiệp vụ sẽ được thêm tiếp
+# theo mô hình: app/routers/student/*, app/routers/admin/*.
+# ---------------------------------------------------------------------------
+app.include_router(system.router)

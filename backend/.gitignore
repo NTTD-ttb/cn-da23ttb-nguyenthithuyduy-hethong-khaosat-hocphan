@@ -1,32 +1,37 @@
-# Môi trường Python ảo
+# =====================================================================
+# .gitignore cho thư mục backend/
+# (Các quy tắc chung của dự án nằm ở .gitignore gốc)
+# =====================================================================
+
+# ------------------- Môi trường Python ảo -------------------
 .venv/
 venv/
 
-# Biến môi trường (chứa mật khẩu) - KHÔNG commit lên Git
+# ------------------- Biến môi trường (chứa mật khẩu) -------------------
 .env
 .env.local
 .env.*.local
 
-# Cache / file biên dịch Python
+# ------------------- Cache / file biên dịch Python -------------------
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 
-# Thư mục build / phân phối
+# ------------------- Thư mục build / phân phối -------------------
 build/
 dist/
 *.egg-info/
 .eggs/
 
-# Công cụ kiểm thử và lint
+# ------------------- Công cụ kiểm thử và lint -------------------
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
 
-# File tạm của hệ điều hành và IDE
+# ------------------- File tạm của hệ điều hành và IDE -------------------
 *.log
 *.tmp
 *.temp
@@ -38,6 +43,18 @@ desktop.ini
 .idea/
 .vscode/
 
-# File dữ liệu upload / xuất nháp
-uploads/
+# ------------------- Thư mục file người dùng tải lên: KHÔNG commit nội dung -------------------
+# storage/uploads/  : danh sách đăng ký học phần (MSSV, họ tên sinh viên)
+# storage/exports/  : file thống kê xuất ra
+# storage/avatars/  : ảnh đại diện sinh viên
+# Dùng "thư mục/*" thay vì "thư mục/" để vẫn giữ được file .gitkeep.
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/exports/*
+!storage/exports/.gitkeep
+storage/avatars/*
+!storage/avatars/.gitkeep
+storage/**/*.xlsx
+storage/**/*.xls
+storage/**/*.csv
 *.xlsx.tmp
