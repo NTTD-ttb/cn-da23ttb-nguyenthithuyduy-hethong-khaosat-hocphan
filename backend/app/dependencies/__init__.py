@@ -1,0 +1,1 @@
+"""Dependencies dùng chung cho FastAPI (xác thực, phân quyền)."""

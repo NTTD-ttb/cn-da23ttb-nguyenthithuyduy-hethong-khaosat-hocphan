@@ -15,3 +15,7 @@ openpyxl>=3.1.0
 
 # Hỗ trợ upload form-data / file
 python-multipart>=0.0.32
+
+# Xác thực JWT & mã hoá password
+python-jose[cryptography]>=3.5.0
+passlib[bcrypt]>=1.7.4

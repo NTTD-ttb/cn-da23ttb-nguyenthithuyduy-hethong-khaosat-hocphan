@@ -19,6 +19,8 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
+
+
     """Khai báo các biến môi trường mà hệ thống sử dụng."""
 
     # ------------------------------------------------------------------
@@ -30,6 +32,9 @@ class Settings(BaseSettings):
     DB_USER: str = "postgres"
     DB_PASSWORD: str = ""
 
+    # cấu hình bảo mật và thời hạn đăng nhập cho hệ thống
+    SECRET_KEY: str = ""
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60   
     # ------------------------------------------------------------------
     # CORS: danh sách origin của frontend, phân tách bằng dấu phẩy.
     # Mặc định là địa chỉ mặc định của Vite (React) khi chạy `npm run dev`.
