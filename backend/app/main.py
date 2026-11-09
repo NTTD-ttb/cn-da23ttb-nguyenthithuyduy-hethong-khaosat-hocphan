@@ -21,6 +21,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.routers import system
 from app.routers import auth 
+from app.routers.admin import (
+    faculties,
+    student_classes,
+    lecturers,
+    courses,
+    course_sections,
+    academic_terms,
+    users,          
+    import_data,
+    survey_templates,  
+    survey_campaigns,  
+    survey_progress,    
+    dashboard,         
+    notifications,    
+)
 
 app = FastAPI(
     title="Hệ thống khảo sát học phần",
@@ -47,3 +62,16 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 app.include_router(system.router)
 app.include_router(auth.router)
+app.include_router(faculties.router)
+app.include_router(student_classes.router)
+app.include_router(lecturers.router)
+app.include_router(courses.router)
+app.include_router(course_sections.router)
+app.include_router(academic_terms.router)
+app.include_router(users.router)       
+app.include_router(import_data.router) 
+app.include_router(survey_templates.router)
+app.include_router(survey_campaigns.router)
+app.include_router(survey_progress.router)
+app.include_router(dashboard.router)
+app.include_router(notifications.router)
