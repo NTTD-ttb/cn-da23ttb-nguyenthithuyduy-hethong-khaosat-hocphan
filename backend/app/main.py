@@ -36,7 +36,13 @@ from app.routers.admin import (
     dashboard,         
     notifications,    
 )
-
+from app.routers.student import (
+    profile as student_profile,
+    surveys as student_surveys,
+    stats as student_stats,
+    contact as student_contact,
+    notifications as student_notifications,
+)
 app = FastAPI(
     title="Hệ thống khảo sát học phần",
     description="API thu thập và phân tích phản hồi của sinh viên về học phần.",
@@ -75,3 +81,9 @@ app.include_router(survey_campaigns.router)
 app.include_router(survey_progress.router)
 app.include_router(dashboard.router)
 app.include_router(notifications.router)
+
+app.include_router(student_profile.router)
+app.include_router(student_surveys.router)
+app.include_router(student_stats.router)
+app.include_router(student_contact.router)
+app.include_router(student_notifications.router)
