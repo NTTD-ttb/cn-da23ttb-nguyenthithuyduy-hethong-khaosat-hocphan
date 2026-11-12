@@ -34,7 +34,8 @@ from app.routers.admin import (
     survey_campaigns,  
     survey_progress,    
     dashboard,         
-    notifications,    
+    notifications,
+    nlp_analysis,
 )
 from app.routers.student import (
     profile as student_profile,
@@ -81,6 +82,7 @@ app.include_router(survey_campaigns.router)
 app.include_router(survey_progress.router)
 app.include_router(dashboard.router)
 app.include_router(notifications.router)
+app.include_router(nlp_analysis.router)
 
 app.include_router(student_profile.router)
 app.include_router(student_surveys.router)
