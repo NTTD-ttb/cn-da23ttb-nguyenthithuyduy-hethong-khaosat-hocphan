@@ -4,6 +4,14 @@ import ProtectedRoute from './routes/ProtectedRoute';
 import LoginPage from './pages/auth/LoginPage';
 import AdminLoginPage from './pages/auth/AdminLoginPage'; 
 
+import StudentLayout from './layouts/StudentLayout';
+import StudentHomePage from './pages/student/StudentHomePage';
+import SurveyListPage from './pages/student/SurveyListPage';
+import SurveyDetailPage from './pages/student/SurveyDetailPage';
+import StudentStatsPage from './pages/student/StudentStatsPage';
+import StudentProfilePage from './pages/student/StudentProfilePage';
+import StudentSupportPage from './pages/student/StudentSupportPage';
+
 const AdminDashboard = () => {
   const { logout } = useAuth();
   return (
@@ -48,7 +56,14 @@ function App() {
 
           {/* Vùng bảo vệ cho SINH VIÊN */}
           <Route element={<ProtectedRoute allowedRoles={['student']} />}>
-            <Route path="/student/home" element={<StudentHome />} />
+            <Route element={<StudentLayout />}>
+              <Route path="/student/home" element={<StudentHomePage />} />
+              <Route path="/student/surveys" element={<SurveyListPage />} />
+              <Route path="/student/surveys/:assignmentId" element={<SurveyDetailPage />} />
+              <Route path="/student/stats" element={<StudentStatsPage />} />
+              <Route path="/student/profile" element={<StudentProfilePage />} />
+              <Route path="/student/support" element={<StudentSupportPage />} />
+            </Route>
           </Route>
 
           {/* Mặc định chuyển về /login */}
