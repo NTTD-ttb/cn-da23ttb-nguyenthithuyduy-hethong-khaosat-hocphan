@@ -35,6 +35,29 @@ def list_my_surveys(
 
 
 @router.get(
+    "/terms",
+    summary="Danh sách tất cả các học kỳ có trong hệ thống",
+)
+def list_student_terms(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_student),
+):
+    from app.models.academic_term import AcademicTerm
+    terms = db.query(AcademicTerm).order_by(AcademicTerm.start_date.desc().nullslast()).all()
+    return [
+        {
+            "term_id": t.term_id,
+            "term_code": t.term_code,
+            "term_name": t.term_name,
+            "academic_year": t.academic_year,
+            "start_date": t.start_date.isoformat() if t.start_date else None,
+            "end_date": t.end_date.isoformat() if t.end_date else None,
+        }
+        for t in terms
+    ]
+
+
+@router.get(
     "/{assignment_id}",
     response_model=StudentSurveyDetailResponse,
     summary="Lấy chi tiết câu hỏi của một môn học (kèm câu trả lời đã lưu nháp nếu có)",
