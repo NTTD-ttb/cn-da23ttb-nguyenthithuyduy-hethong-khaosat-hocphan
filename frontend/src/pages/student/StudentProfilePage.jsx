@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
+  AlertCircle,
   Calendar,
   Camera,
-  Check,
   CheckCircle2,
   Clock,
   Edit2,
@@ -11,46 +10,38 @@ import {
   EyeOff,
   GraduationCap,
   Key,
-  Laptop,
   Lock,
   Mail,
-  Phone,
-  RefreshCw,
   Save,
   ShieldCheck,
   User,
-  X,
 } from 'lucide-react';
 import axiosClient from '../../api/axiosClient';
-import { useAuth } from '../../contexts/AuthContext';
+
+const formatDate = (value) => {
+  if (!value) return '';
+  const [year, month, day] = value.split('-');
+  if (!year || !month || !day) return value;
+  return `${day}/${month}/${year}`;
+};
 
 export default function StudentProfilePage() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-
-  // Dữ liệu hồ sơ sinh viên
   const [profile, setProfile] = useState({
-    full_name: 'Nguyễn Minh Anh',
-    student_code: '110121045',
-    class_name: 'DA23TTB',
-    faculty_name: 'Khoa Kỹ thuật & Công nghệ',
-    major_name: 'Chuyên ngành Công nghệ Thông tin (K2023 - 2027)',
-    academic_system: 'Hệ Đại học chính quy',
-    advisor_name: 'ThS. Ngô Thanh Huy',
-    date_of_birth: '15/10/2003',
-    gender: 'Nữ',
-    email: '110121045@st.tvu.edu.vn',
-    phone: '0912 345 678',
+    full_name: '',
+    student_code: '',
+    class_code: '',
+    class_name: '',
+    faculty_name: '',
+    date_of_birth: null,
+    gender_student: '',
+    email: '',
+    phone_student: '',
     avatar_url: '',
-    survey_completed: 8,
-    survey_total: 10,
-    survey_percent: 80,
-    urgent_surveys: 2,
-    last_password_change: '02/01/2025',
+    address_student: '',
   });
 
-  const [initialPhone, setInitialPhone] = useState('0912 345 678');
-  const [phone, setPhone] = useState('0912 345 678');
+  const [initialPhone, setInitialPhone] = useState('');
+  const [phone, setPhone] = useState('');
 
   // Đổi mật khẩu
   const [currentPassword, setCurrentPassword] = useState('');
@@ -63,39 +54,42 @@ export default function StudentProfilePage() {
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(true);
+  const [profileError, setProfileError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const [toastMessage, setToastMessage] = useState(null);
 
-  // Tải hồ sơ từ API backend
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    let active = true;
+    axiosClient
+      .get('/student/profile')
+      .then((response) => {
+        const data = response?.data || response;
+        if (!data || !data.student_id) {
+          throw new Error('Dữ liệu hồ sơ trả về không hợp lệ.');
+        }
+        if (!active) return;
 
-  const fetchProfile = async () => {
-    setIsRefreshing(true);
-    try {
-      const res = await axiosClient.get('/student/profile');
-      if (res.data) {
-        setProfile((prev) => ({
-          ...prev,
-          full_name: res.data.full_name || prev.full_name,
-          student_code: res.data.student_code || prev.student_code,
-          email: res.data.email || prev.email,
-          class_name: res.data.class_code || res.data.class_name || prev.class_name,
-          faculty_name: res.data.faculty_name || prev.faculty_name,
-          phone: res.data.phone_student || prev.phone,
-          gender: res.data.gender_student || prev.gender,
-          date_of_birth: res.data.date_of_birth || prev.date_of_birth,
-        }));
-        setPhone(res.data.phone_student || '0912 345 678');
-        setInitialPhone(res.data.phone_student || '0912 345 678');
-      }
-    } catch {
-      // Giữ mock chuẩn
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
+        setProfile(data);
+        setPhone(data.phone_student || '');
+        setInitialPhone(data.phone_student || '');
+        setProfileError('');
+      })
+      .catch((error) => {
+        if (active) {
+          setProfileError(
+            error.response?.data?.detail || error.message || 'Không thể tải hồ sơ sinh viên.'
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setIsRefreshing(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
 
   // Kiểm tra quy định mật khẩu mạnh
   const hasMinLength = newPassword.length >= 8;
@@ -103,22 +97,30 @@ export default function StudentProfilePage() {
   const hasSpecialChar = /[@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(newPassword);
   const notSameAsStudentCode =
     newPassword.length > 0 &&
-    !newPassword.toLowerCase().includes(profile.student_code.toLowerCase()) &&
-    !newPassword.toLowerCase().includes('minhanh');
+    (!profile.student_code ||
+      !newPassword.toLowerCase().includes(profile.student_code.toLowerCase())) &&
+    (!profile.full_name ||
+      !newPassword.toLowerCase().includes(profile.full_name.toLowerCase().replace(/\s+/g, '')));
 
   // Lưu thông tin liên hệ (SĐT)
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setSavingProfile(true);
     try {
-      await axiosClient.put('/student/profile', {
+      const response = await axiosClient.put('/student/profile', {
         phone_student: phone,
       });
-      setInitialPhone(phone);
+      const updatedProfile = response?.data || response;
+      if (updatedProfile?.student_id) setProfile(updatedProfile);
+      const savedPhone = updatedProfile?.phone_student ?? phone;
+      setPhone(savedPhone || '');
+      setInitialPhone(savedPhone || '');
       showToast('✅ Cập nhật số điện thoại liên hệ thành công!');
-    } catch {
-      setInitialPhone(phone);
-      showToast('✅ Đã lưu cập nhật thông tin thành công!');
+    } catch (error) {
+      showToast(
+        error.response?.data?.detail || error.message || 'Không thể cập nhật số điện thoại.',
+        true
+      );
     } finally {
       setSavingProfile(false);
     }
@@ -164,6 +166,36 @@ export default function StudentProfilePage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  if (isRefreshing) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+        Đang tải hồ sơ sinh viên...
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center">
+        <AlertCircle className="mx-auto text-rose-600" size={28} />
+        <p className="mt-3 text-sm font-semibold text-rose-800">
+          Không thể tải hồ sơ sinh viên
+        </p>
+        <p className="mt-1 text-xs text-rose-700">{profileError}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setIsRefreshing(true);
+            setReloadKey((key) => key + 1);
+          }}
+          className="mt-4 rounded-xl bg-[#08245f] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0b3387]"
+        >
+          Thử tải lại
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-12">
       {/* THÔNG BÁO TOAST NỔI */}
@@ -173,7 +205,7 @@ export default function StudentProfilePage() {
             toastMessage.isError ? 'bg-rose-600' : 'bg-emerald-600'
           }`}
         >
-          <CheckCircle2 size={16} />
+          {toastMessage.isError ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
           <span>{toastMessage.message}</span>
         </div>
       )}
@@ -193,12 +225,21 @@ export default function StudentProfilePage() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               {/* AVATAR CÓ NÚT CAMERA */}
               <div className="relative shrink-0">
-                <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-blue-50 to-indigo-100 text-2xl font-bold text-[#08245f] shadow-inner">
-                  {profile.full_name
-                    .split(' ')
-                    .slice(-2)
-                    .map((w) => w[0])
-                    .join('')}
+                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-blue-50 to-indigo-100 text-2xl font-bold text-[#08245f] shadow-inner">
+                  {profile.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={`Ảnh đại diện ${profile.full_name}`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    profile.full_name
+                      .split(' ')
+                      .filter(Boolean)
+                      .slice(-2)
+                      .map((word) => word[0])
+                      .join('')
+                  )}
                 </div>
                 <button
                   type="button"
@@ -214,7 +255,7 @@ export default function StudentProfilePage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-xl font-bold text-slate-900">{profile.full_name}</h2>
                   <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 font-mono text-[11px] font-bold text-[#08245f]">
-                    {profile.class_name}
+                    {profile.class_code || profile.class_name || 'Chưa cập nhật lớp'}
                   </span>
                 </div>
 
@@ -225,17 +266,17 @@ export default function StudentProfilePage() {
                 </div>
 
                 <p className="text-xs text-slate-600">
-                  <strong>{profile.faculty_name}</strong> • {profile.major_name}
+                  <strong>{profile.faculty_name || 'Chưa cập nhật khoa'}</strong>
                 </p>
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 pt-0.5">
                   <span className="flex items-center gap-1 text-emerald-700 font-medium">
                     <CheckCircle2 size={13} />
-                    {profile.academic_system}
+                    Hồ sơ từ hệ thống
                   </span>
                   <span className="flex items-center gap-1 text-slate-600 font-medium">
                     <GraduationCap size={14} className="text-slate-400" />
-                    Cố vấn: <strong>{profile.advisor_name}</strong>
+                    Lớp: <strong>{profile.class_name || profile.class_code || 'Chưa cập nhật'}</strong>
                   </span>
                 </div>
               </div>
@@ -309,7 +350,7 @@ export default function StudentProfilePage() {
                 <div className="relative">
                   <input
                     type="text"
-                    value={profile.date_of_birth}
+                    value={formatDate(profile.date_of_birth)}
                     disabled
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-3.5 pr-8 text-xs font-medium text-slate-700 cursor-not-allowed"
                   />
@@ -323,7 +364,7 @@ export default function StudentProfilePage() {
                 <div className="relative">
                   <input
                     type="text"
-                    value={profile.gender}
+                    value={profile.gender_student || ''}
                     disabled
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-3.5 pr-8 text-xs font-medium text-slate-700 cursor-not-allowed"
                   />
@@ -336,22 +377,12 @@ export default function StudentProfilePage() {
                 <label className="mb-1 block text-xs font-semibold text-slate-600">Lớp sinh hoạt</label>
                 <input
                   type="text"
-                  value={profile.class_name}
+                  value={profile.class_name || profile.class_code || ''}
                   disabled
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 px-3.5 text-xs font-medium text-slate-700 cursor-not-allowed"
                 />
               </div>
 
-              {/* Cố vấn học tập (Khóa) */}
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Cố vấn học tập</label>
-                <input
-                  type="text"
-                  value={profile.advisor_name}
-                  disabled
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 px-3.5 text-xs font-medium text-slate-700 cursor-not-allowed"
-                />
-              </div>
             </div>
 
             {/* Email trường cấp (Full width - Khóa) */}
@@ -545,11 +576,7 @@ export default function StudentProfilePage() {
             <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
               <span className="flex items-center gap-1">
                 <Clock size={12} />
-                Đổi lần cuối: {profile.last_password_change}
-              </span>
-              <span className="flex items-center gap-1">
-                <Laptop size={12} />
-                Chrome trên Windows
+                Đổi mật khẩu được xác thực bởi hệ thống
               </span>
             </div>
 
