@@ -1,67 +1,86 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
   Clock,
   HelpCircle,
-  History,
-  LifeBuoy,
-  Mail,
   MessageSquare,
-  Phone,
   RotateCcw,
   Send,
   ShieldCheck,
-  Tag,
   Ticket,
   X,
+  ChevronLeft,
   ChevronRight,
-  Info,
 } from 'lucide-react';
 import axiosClient from '../../api/axiosClient';
 
-// Danh sách các ticket gần đây mẫu theo thiết kế
-const INITIAL_TICKETS = [
-  {
-    ticket_id: 'TVU-8492',
-    subject: 'Không thấy hiển thị khảo sát môn Triết học Mác - Lênin',
-    category: 'Sai lệch danh sách học phần',
-    created_at: 'Hôm qua, 14:20',
-    responder: 'ThS. Ngô Thanh Huy',
-    status: 'resolved',
-    status_label: 'Đã xử lý xong',
-    status_color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    content: 'Em kiểm tra danh sách môn khảo sát kỳ này nhưng không thấy môn Triết học Mác - Lênin mặc dù em đã đăng ký học phần đầy đủ.',
-    response_content: 'Hệ thống đã cập nhật bổ sung học phần này cho em. Em vui lòng tải lại trang Khảo sát của tôi để thực hiện nhé!',
+const REQUEST_TYPE_LABELS = {
+  sai_thong_tin: 'Sai lệch thông tin',
+  khong_thay_hoc_phan: 'Không thấy học phần',
+  loi_lam_bai: 'Lỗi kỹ thuật khi làm khảo sát',
+  gop_y: 'Góp ý',
+  khac: 'Khác',
+};
+
+const REQUEST_STATUS = {
+  pending: {
+    label: 'Đã tiếp nhận',
+    color: 'bg-blue-50 text-blue-700 border-blue-200',
   },
-  {
-    ticket_id: 'TVU-8310',
-    subject: 'Lỗi tải ảnh minh chứng đề tài nghiên cứu khoa học',
-    category: 'Lỗi kỹ thuật hệ thống',
-    created_at: '03/03/2025 - 09:15',
-    responder: 'Ban CNTT',
-    status: 'processing',
-    status_label: 'Đang xử lý',
-    status_color: 'bg-amber-50 text-amber-700 border-amber-200',
-    content: 'Khi bấm tải file ảnh minh chứng lên thì hệ thống báo lỗi quá dung lượng dù file chỉ có 1.5MB.',
-    response_content: 'Kỹ thuật viên đang kiểm tra lại cấu hình giới hạn upload trên server.',
+  in_progress: {
+    label: 'Đang xử lý',
+    color: 'bg-amber-50 text-amber-700 border-amber-200',
   },
-  {
-    ticket_id: 'TVU-7995',
-    subject: 'Đề xuất hiển thị số lượng câu hỏi đã hoàn thành trên thanh tiến trình',
-    category: 'Góp ý giao diện',
-    created_at: '28/02/2025 - 16:40',
-    responder: 'Phòng ĐBCL',
-    status: 'received',
-    status_label: 'Đã tiếp nhận',
-    status_color: 'bg-blue-50 text-blue-700 border-blue-200',
-    content: 'Em mong muốn có hiển thị số câu trả lời / tổng số câu để dễ theo dõi khi làm phiếu dài.',
-    response_content: 'Cảm ơn em đã đóng góp ý kiến hay! Nhà trường đã ghi nhận và đưa vào kế hoạch cải tiến giao diện đợt này.',
+  resolved: {
+    label: 'Đã xử lý',
+    color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   },
-];
+  closed: {
+    label: 'Đã đóng',
+    color: 'bg-slate-100 text-slate-600 border-slate-200',
+  },
+};
+
+const formatDateTime = (value) => {
+  if (!value) return 'Chưa cập nhật';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Chưa cập nhật' : date.toLocaleString('vi-VN');
+};
+
+const getErrorMessage = (error) =>
+  error.response?.data?.detail || error.message || 'Đã xảy ra lỗi, vui lòng thử lại.';
+
+const TICKETS_PER_PAGE = 3;
+
+const loadMyTickets = async () => {
+  const response = await axiosClient.get('/student/contact/my-requests');
+  const requests = response?.data || response;
+  if (!Array.isArray(requests)) {
+    throw new Error('Dữ liệu yêu cầu hỗ trợ trả về không hợp lệ.');
+  }
+
+  return requests.map((item) => {
+    const status = REQUEST_STATUS[item.status_contact_request] || REQUEST_STATUS.pending;
+    return {
+      ticket_id: item.request_id,
+      subject: item.subject || 'Yêu cầu hỗ trợ',
+      category: REQUEST_TYPE_LABELS[item.request_type] || item.request_type || 'Khác',
+      created_at: formatDateTime(item.created_contact_request),
+      status: item.status_contact_request,
+      status_label: status.label,
+      status_color: status.color,
+      content: item.content_contact_request || '',
+      response_content: item.admin_note || 'Chưa có nội dung phản hồi từ quản trị viên.',
+      resolved_at: item.resolved_contact_request,
+    };
+  });
+};
 
 export default function StudentSupportPage() {
-  const [tickets, setTickets] = useState(INITIAL_TICKETS);
+  const [tickets, setTickets] = useState([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [ticketsError, setTicketsError] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -70,46 +89,48 @@ export default function StudentSupportPage() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
+  const [currentTicketPage, setCurrentTicketPage] = useState(1);
 
-  // Tải danh sách yêu cầu thật từ API backend
-  useEffect(() => {
-    fetchMyTickets();
+  const fetchMyTickets = useCallback(async () => {
+    setTicketsLoading(true);
+    setTicketsError('');
+    setCurrentTicketPage(1);
+    try {
+      setTickets(await loadMyTickets());
+    } catch (error) {
+      setTicketsError(getErrorMessage(error));
+    } finally {
+      setTicketsLoading(false);
+    }
   }, []);
 
-  const fetchMyTickets = async () => {
-    try {
-      const res = await axiosClient.get('/student/contact/my-requests');
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        const mapped = res.data.map((item, idx) => ({
-          ticket_id: `TVU-${item.request_id || 8000 + idx}`,
-          subject: item.subject || 'Yêu cầu hỗ trợ',
-          category: item.category || 'Hỗ trợ kỹ thuật',
-          created_at: item.created_at
-            ? new Date(item.created_at).toLocaleDateString('vi-VN')
-            : 'Gần đây',
-          responder: item.responder_name || 'Phòng ĐBCL & CTSV',
-          status: item.status || 'received',
-          status_label:
-            item.status === 'resolved'
-              ? 'Đã xử lý xong'
-              : item.status === 'processing'
-              ? 'Đang xử lý'
-              : 'Đã tiếp nhận',
-          status_color:
-            item.status === 'resolved'
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-              : item.status === 'processing'
-              ? 'bg-amber-50 text-amber-700 border-amber-200'
-              : 'bg-blue-50 text-blue-700 border-blue-200',
-          content: item.message || '',
-          response_content: item.reply_content || 'Đang chờ cán bộ phụ trách phản hồi.',
-        }));
-        setTickets(mapped);
-      }
-    } catch {
-      // Giữ mock chuẩn thiết kế
-    }
-  };
+  const totalTicketPages = Math.max(1, Math.ceil(tickets.length / TICKETS_PER_PAGE));
+  const visibleTickets = tickets.slice(
+    (currentTicketPage - 1) * TICKETS_PER_PAGE,
+    currentTicketPage * TICKETS_PER_PAGE
+  );
+
+  useEffect(() => {
+    let active = true;
+    loadMyTickets()
+      .then((requests) => {
+        if (active) {
+          setTickets(requests);
+          setTicketsError('');
+          setCurrentTicketPage(1);
+        }
+      })
+      .catch((error) => {
+        if (active) setTicketsError(getErrorMessage(error));
+      })
+      .finally(() => {
+        if (active) setTicketsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Xóa form làm lại
   const handleResetForm = () => {
@@ -141,31 +162,16 @@ export default function StudentSupportPage() {
 
     setSubmitting(true);
     try {
-      await axiosClient.post('/student/contact', {
-        category: selectedCategory,
+      await axiosClient.post('/student/contact/', {
+        request_type: selectedCategory,
         subject: title,
-        message: content,
+        content_contact_request: content,
       });
-      showToast('🎉 Gửi yêu cầu hỗ trợ thành công! Cán bộ TVU sẽ phản hồi trong 24h.');
+      showToast('Gửi yêu cầu hỗ trợ thành công. Yêu cầu đã được lưu vào hệ thống.');
       handleResetForm();
-      fetchMyTickets();
-    } catch {
-      // Giả lập thành công cho trải nghiệm mượt mà
-      const newMockTicket = {
-        ticket_id: `TVU-${Math.floor(1000 + Math.random() * 9000)}`,
-        subject: title,
-        category: selectedCategory,
-        created_at: 'Vừa xong',
-        responder: 'Bộ phận tiếp nhận: Đang phân công',
-        status: 'received',
-        status_label: 'Đã tiếp nhận',
-        status_color: 'bg-blue-50 text-blue-700 border-blue-200',
-        content: content,
-        response_content: 'Yêu cầu của bạn đã được ghi nhận vào hệ thống.',
-      };
-      setTickets([newMockTicket, ...tickets]);
-      showToast('🎉 Gửi yêu cầu hỗ trợ thành công! Cán bộ TVU sẽ phản hồi trong 24h.');
-      handleResetForm();
+      await fetchMyTickets();
+    } catch (error) {
+      showToast(getErrorMessage(error), true);
     } finally {
       setSubmitting(false);
     }
@@ -185,7 +191,7 @@ export default function StudentSupportPage() {
             toastMessage.isError ? 'bg-rose-600' : 'bg-emerald-600'
           }`}
         >
-          <CheckCircle2 size={16} />
+          {toastMessage.isError ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
           <span>{toastMessage.message}</span>
         </div>
       )}
@@ -193,72 +199,62 @@ export default function StudentSupportPage() {
       {/* 1. BANNER CHÍNH KHỐI XANH NAVY (#08245f) */}
       <div className="relative overflow-hidden rounded-2xl bg-[#08245f] p-6 text-white shadow-sm sm:p-7">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-2 max-w-3xl">
+          <div className="mx-auto w-full max-w-3xl space-y-2 text-center">
             {/* HUY HIỆU KÊNH TIẾP NHẬN CHÍNH THỨC */}
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>KÊNH TIẾP NHẬN CHÍNH THỨC CỦA NHÀ TRƯỜNG</span>
-            </div>
+            
 
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-              Trung tâm Hỗ trợ & Giải đáp Sinh viên TVU
+              Trung tâm Hỗ trợ và Giải đáp Sinh viên TVU
             </h1>
             <p className="text-xs text-blue-100/90 sm:text-sm leading-relaxed">
-              Tiếp nhận các thắc mắc về kỹ thuật khảo sát, sai lệch thông tin học phần, phản ánh ẩn danh và hỗ trợ kỹ thuật trực tiếp từ Phòng Đảm bảo chất lượng & Phòng Công tác sinh viên.
+              Gửi thắc mắc về kỹ thuật khảo sát, thông tin học phần hoặc các góp ý. Bạn có thể theo dõi trạng thái và phản hồi của quản trị viên trong lịch sử yêu cầu.
             </p>
           </div>
 
-          {/* HUY HIỆU BẢO MẬT GÓC PHẢI */}
-          <div className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl border border-white/10 bg-white/10 px-3.5 py-2 text-xs font-medium text-white shadow-sm backdrop-blur-xs">
-            <ShieldCheck size={18} className="text-emerald-400" />
-            <div>
-              <p className="font-bold text-[11px]">Bảo mật danh tính</p>
-              <p className="text-[10px] text-blue-200">100% Ẩn danh</p>
-            </div>
-          </div>
+          
         </div>
 
         {/* 3 THẺ LIÊN HỆ DƯỚI CÙNG BANNER */}
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {/* Card 1: Hotline */}
+          {/* Card 1: Theo dõi yêu cầu */}
           <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-xs">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/20 text-emerald-300">
-              <Phone size={18} />
+              <Ticket size={18} />
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">
-                HOTLINE HỖ TRỢ KỸ THUẬT
+                MÃ YÊU CẦU
               </p>
-              <p className="text-sm font-extrabold text-white">(0294) 3855 246</p>
-              <p className="text-[10px] text-blue-200">8:00 - 17:00 (Thứ 2 - Thứ 6)</p>
+              <p className="text-sm font-extrabold text-white">Được tạo tự động</p>
+              <p className="text-[10px] text-blue-200">Hiển thị trong lịch sử hỗ trợ</p>
             </div>
           </div>
 
-          {/* Card 2: Email */}
+          {/* Card 2: Phản hồi */}
           <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-xs">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/20 text-blue-300">
-              <Mail size={18} />
+              <MessageSquare size={18} />
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">
-                EMAIL TIẾP NHẬN
+                PHẢN HỒI
               </p>
-              <p className="text-xs font-bold text-white">ctsv@tvu.edu.vn</p>
-              <p className="text-[10px] text-blue-200">dbcl@tvu.edu.vn</p>
+              <p className="text-sm font-extrabold text-white">Theo từng yêu cầu</p>
+              <p className="text-[10px] text-blue-200">Hiển thị khi có phản hồi</p>
             </div>
           </div>
 
-          {/* Card 3: Cam kết */}
+          {/* Card 3: Thời gian */}
           <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-xs">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/20 text-amber-300">
               <Clock size={18} />
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">
-                THỜI GIAN CAM KẾT
+                THỜI GIAN GỬI
               </p>
-              <p className="text-xs font-bold text-white">Trong vòng 24 giờ</p>
-              <p className="text-[10px] text-blue-200">Xử lý ưu tiên theo thứ tự gửi</p>
+              <p className="text-xs font-bold text-white">Ghi nhận tự động</p>
+              <p className="text-[10px] text-blue-200">Theo thời gian trên hệ thống</p>
             </div>
           </div>
         </div>
@@ -295,11 +291,11 @@ export default function StudentSupportPage() {
                 className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               >
                 <option value="">-- Chọn phân loại hỗ trợ --</option>
-                <option value="Lỗi kỹ thuật hệ thống">Lỗi kỹ thuật hệ thống khảo sát</option>
-                <option value="Sai lệch danh sách học phần">Sai lệch danh sách học phần / Giảng viên</option>
-                <option value="Thắc mắc về điểm thi">Thắc mắc về mở điểm thi sau khảo sát</option>
-                <option value="Phản ánh chất lượng">Phản ánh chất lượng giảng dạy (Ẩn danh)</option>
-                <option value="Khác">Vấn đề khác</option>
+                <option value="sai_thong_tin">Sai lệch thông tin học phần / giảng viên</option>
+                <option value="khong_thay_hoc_phan">Không thấy học phần</option>
+                <option value="loi_lam_bai">Lỗi kỹ thuật khi làm khảo sát</option>
+                <option value="gop_y">Góp ý</option>
+                <option value="khac">Vấn đề khác</option>
               </select>
             </div>
 
@@ -384,7 +380,26 @@ export default function StudentSupportPage() {
 
             {/* DANH SÁCH TICKETS */}
             <div className="mt-4 space-y-3">
-              {tickets.map((t) => (
+              {ticketsLoading && (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  Đang tải yêu cầu hỗ trợ...
+                </div>
+              )}
+
+              {!ticketsLoading && ticketsError && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700">
+                  <p>{ticketsError}</p>
+                  <button
+                    type="button"
+                    onClick={fetchMyTickets}
+                    className="mt-2 font-semibold underline"
+                  >
+                    Thử tải lại
+                  </button>
+                </div>
+              )}
+
+              {!ticketsLoading && !ticketsError && visibleTickets.map((t) => (
                 <div
                   key={t.ticket_id}
                   onClick={() => setSelectedTicket(t)}
@@ -405,32 +420,66 @@ export default function StudentSupportPage() {
                   <h3 className="text-xs font-bold text-slate-800 group-hover:text-[#08245f] transition line-clamp-2">
                     {t.subject}
                   </h3>
+                  <p className="text-[11px] text-slate-500">{t.category}</p>
 
                   <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-100">
                     <span>{t.created_at}</span>
-                    <span className="font-medium text-slate-600">
-                      Phản hồi: {t.responder}
-                    </span>
+                    <span className="font-medium text-slate-600">Xem chi tiết</span>
                   </div>
                 </div>
               ))}
 
-              {tickets.length === 0 && (
+              {!ticketsLoading && !ticketsError && tickets.length === 0 && (
                 <div className="py-8 text-center text-xs text-slate-400">
                   Bạn chưa gửi yêu cầu hỗ trợ nào.
                 </div>
               )}
             </div>
+
+            {!ticketsLoading && !ticketsError && tickets.length > 0 && (
+              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                <span className="text-[11px] text-slate-500">
+                  Trang {currentTicketPage}/{totalTicketPages} · {tickets.length} yêu cầu
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCurrentTicketPage((page) => Math.max(1, page - 1))
+                    }
+                    disabled={currentTicketPage === 1}
+                    aria-label="Trang trước"
+                    className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCurrentTicketPage((page) =>
+                        Math.min(totalTicketPages, page + 1)
+                      )
+                    }
+                    disabled={currentTicketPage === totalTicketPages}
+                    aria-label="Trang sau"
+                    className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* NÚT XEM TẤT CẢ LỊCH SỬ DƯỚI CÙNG */}
           <button
             type="button"
-            onClick={() => showToast('ℹ️ Bạn đang xem đầy đủ tất cả các yêu cầu hỗ trợ hiện có.')}
+            onClick={fetchMyTickets}
+            disabled={ticketsLoading}
             className="w-full rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition flex items-center justify-center gap-1"
           >
-            <span>Xem tất cả lịch sử yêu cầu ({tickets.length})</span>
-            <ChevronRight size={14} />
+            <span>{ticketsLoading ? 'Đang tải...' : `Làm mới lịch sử yêu cầu (${tickets.length})`}</span>
+            <RotateCcw size={14} />
           </button>
         </div>
       </div>
@@ -467,6 +516,16 @@ export default function StudentSupportPage() {
                 <p className="text-sm font-bold text-slate-800">{selectedTicket.subject}</p>
               </div>
 
+              <div>
+                <p className="text-[11px] text-slate-400 font-medium">Chủ đề hỗ trợ:</p>
+                <p className="text-slate-700">{selectedTicket.category}</p>
+              </div>
+
+              <div>
+                <p className="text-[11px] text-slate-400 font-medium">Ngày gửi:</p>
+                <p className="text-slate-700">{selectedTicket.created_at}</p>
+              </div>
+
               <div className="rounded-xl bg-slate-50 p-3 space-y-1">
                 <p className="text-[11px] text-slate-400 font-medium">Nội dung sinh viên phản ánh:</p>
                 <p className="text-slate-700 leading-relaxed">{selectedTicket.content}</p>
@@ -474,10 +533,12 @@ export default function StudentSupportPage() {
 
               <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3 space-y-1">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="font-bold text-[#08245f]">
-                    Phản hồi từ {selectedTicket.responder}:
-                  </span>
-                  <span className="text-slate-400">{selectedTicket.created_at}</span>
+                  <span className="font-bold text-[#08245f]">Phản hồi từ quản trị viên</span>
+                  {selectedTicket.resolved_at && (
+                    <span className="text-slate-400">
+                      {formatDateTime(selectedTicket.resolved_at)}
+                    </span>
+                  )}
                 </div>
                 <p className="text-slate-700 leading-relaxed">
                   {selectedTicket.response_content}
