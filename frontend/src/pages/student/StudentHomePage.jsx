@@ -21,13 +21,40 @@ import {
   ExternalLink,
   ChevronRight,
   RotateCcw,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import axiosClient from '../../api/axiosClient';
 
+const GUIDE_DOCUMENT_URL =
+  'https://docs.google.com/document/d/1vKvC9C6VXi0r0yC5fMYmZ28qcIwhqphZ/edit?usp=drive_link&ouid=116555884419031655025&rtpof=true&sd=true';
+
+const getGoogleDrivePreviewUrl = (url) => {
+  if (!url) return '';
+
+  const documentMatch = url.match(/docs\.google\.com\/document\/d\/([^/?]+)/);
+  if (documentMatch) {
+    return `https://docs.google.com/document/d/${documentMatch[1]}/preview`;
+  }
+
+  const fileMatch = url.match(/drive\.google\.com\/file\/d\/([^/?]+)/);
+  if (fileMatch) {
+    return `https://drive.google.com/file/d/${fileMatch[1]}/preview`;
+  }
+
+  const idMatch = url.match(/[?&]id=([^&]+)/);
+  if (idMatch) {
+    return `https://drive.google.com/file/d/${idMatch[1]}/preview`;
+  }
+
+  return url;
+};
+
 export default function StudentHomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [showGuideModal, setShowGuideModal] = useState(false);
+  const guidePreviewUrl = getGoogleDrivePreviewUrl(GUIDE_DOCUMENT_URL);
 
   // 1. Thông tin sinh viên đăng nhập
   const [studentInfo, setStudentInfo] = useState({
@@ -511,7 +538,7 @@ export default function StudentHomePage() {
           <div className="mt-4 pt-3 border-t border-blue-100">
             <button
               type="button"
-              onClick={() => navigate('/student/support')}
+              onClick={() => setShowGuideModal(true)}
               className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#08245f] py-2.5 text-xs font-bold text-white shadow-2xs hover:bg-[#0b3387] transition"
             >
               <span>Xem hướng dẫn chi tiết</span>
@@ -640,6 +667,72 @@ export default function StudentHomePage() {
           </span>
         </div>
       </div> */}
+
+      {showGuideModal && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-3 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="student-guide-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowGuideModal(false);
+          }}
+        >
+          <div className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 sm:px-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#08245f]">
+                  <BookOpen size={18} />
+                </div>
+                <div>
+                  <h2 id="student-guide-title" className="text-sm font-bold text-slate-900 sm:text-base">
+                    Hướng dẫn thực hiện khảo sát học phần
+                  </h2>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Tài liệu hướng dẫn dành cho sinh viên
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGuideModal(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Đóng hướng dẫn"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 bg-slate-100 p-2 sm:p-3">
+              {guidePreviewUrl ? (
+                <iframe
+                  title="Tài liệu hướng dẫn khảo sát"
+                  src={guidePreviewUrl}
+                  className="h-full w-full rounded-xl border border-slate-200 bg-white"
+                  allow="fullscreen"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                  Chưa có liên kết tài liệu hướng dẫn.
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+              <span className="hidden text-[11px] text-slate-400 sm:block">
+                Nội dung được tải trực tiếp từ Google Drive
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowGuideModal(false)}
+                className="ml-auto rounded-xl bg-[#08245f] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0b3387]"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
