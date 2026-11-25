@@ -1,6 +1,6 @@
 """Router Upload & Quản lý Import dữ liệu — Admin."""
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -20,14 +20,12 @@ router = APIRouter(prefix="/admin/import", tags=["Admin - Import Dữ liệu"])
 )
 def upload_enrollments(
     file: UploadFile = File(..., description="File danh sách sinh viên đăng ký (.csv, .xlsx)"),
-    term_id: int = Form(..., description="ID học kỳ áp dụng"),
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
     return import_service.process_enrollment_import(
         db=db,
         file=file,
-        term_id=term_id,
         current_admin_id=admin.user_id,
     )
 

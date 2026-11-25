@@ -13,6 +13,9 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Dùng khi tạo tài khoản mới — cần mật khẩu ban đầu."""
     password: str = Field(..., min_length=6, description="Mật khẩu khởi tạo")
+    student_code: str | None = None
+    full_name: str | None = None
+    class_id: int | None = None
 
 
 class UserUpdate(BaseModel):
@@ -20,6 +23,9 @@ class UserUpdate(BaseModel):
     email: str | None = None
     role: str | None = None
     must_change_password: bool | None = None
+    student_code: str | None = None
+    full_name: str | None = None
+    class_id: int | None = None
 
 
 class UserResetPassword(BaseModel):
@@ -27,10 +33,25 @@ class UserResetPassword(BaseModel):
     new_password: str = Field(..., min_length=6, description="Mật khẩu mới do admin đặt")
 
 
+class StudentClassBrief(BaseModel):
+    class_code: str | None = None
+    class_name: str | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StudentProfileBrief(BaseModel):
+    student_code: str | None = None
+    full_name: str | None = None
+    class_id: int | None = None
+    student_class: StudentClassBrief | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserResponse(UserBase):
     """Dữ liệu trả về cho client — KHÔNG bao giờ chứa password_hash."""
     user_id: int
     created_account: datetime
     updated_account: datetime
+    student_profile: StudentProfileBrief | None = None
 
     model_config = ConfigDict(from_attributes=True)

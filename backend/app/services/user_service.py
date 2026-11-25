@@ -36,7 +36,7 @@ def get_user_by_id(db: Session, user_id: int) -> User:
 
 
 def create_user(db: Session, data: UserCreate) -> User:
-    """Tạo người dùng mới và băm mật khẩu bảo mật."""
+    """Tạo người dùng mới và băm mật khẩu bảo mật (hỗ trợ tạo profile sinh viên nếu có)."""
     existing = db.query(User).filter(User.email == data.email).first()
     if existing:
         raise HTTPException(
@@ -47,17 +47,39 @@ def create_user(db: Session, data: UserCreate) -> User:
     # Băm mật khẩu bằng hàm hash_password ở tuần 4
     hashed = hash_password(data.password)
     user_data = data.model_dump()
-    user_data.pop("password")  # Bỏ mật khẩu thô
+    user_data.pop("password", None)
+    student_code = user_data.pop("student_code", None)
+    full_name = user_data.pop("full_name", None)
+    class_id = user_data.pop("class_id", None)
 
     user = User(**user_data, password_hash=hashed)
     db.add(user)
+    db.flush()
+
+    if data.role == "student" and (student_code or full_name):
+        from app.models.student import StudentProfile
+        if student_code:
+            existing_st = db.query(StudentProfile).filter(StudentProfile.student_code == student_code).first()
+            if existing_st:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Mã sinh viên '{student_code}' đã tồn tại."
+                )
+        profile = StudentProfile(
+            student_id=user.user_id,
+            student_code=student_code or user.email.split("@")[0],
+            full_name=full_name or "Sinh viên",
+            class_id=class_id or 1,
+        )
+        db.add(profile)
+
     db.commit()
     db.refresh(user)
     return user
 
 
 def update_user(db: Session, user_id: int, data: UserUpdate) -> User:
-    """Cập nhật thông tin tài khoản người dùng."""
+    """Cập nhật thông tin tài khoản người dùng và hồ sơ sinh viên nếu có."""
     user = get_user_by_id(db, user_id)
 
     # Nếu cập nhật email, kiểm tra trùng lặp với người khác
@@ -69,8 +91,21 @@ def update_user(db: Session, user_id: int, data: UserUpdate) -> User:
                 detail=f"Email '{data.email}' đã được sử dụng."
             )
 
-    for field, value in data.model_dump(exclude_none=True).items():
+    update_dict = data.model_dump(exclude_none=True)
+    student_code = update_dict.pop("student_code", None)
+    full_name = update_dict.pop("full_name", None)
+    class_id = update_dict.pop("class_id", None)
+
+    for field, value in update_dict.items():
         setattr(user, field, value)
+
+    if user.student_profile and any([student_code, full_name, class_id]):
+        if student_code is not None:
+            user.student_profile.student_code = student_code
+        if full_name is not None:
+            user.student_profile.full_name = full_name
+        if class_id is not None:
+            user.student_profile.class_id = class_id
 
     db.commit()
     db.refresh(user)
