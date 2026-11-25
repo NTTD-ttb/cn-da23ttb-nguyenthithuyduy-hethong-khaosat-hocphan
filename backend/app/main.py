@@ -30,6 +30,7 @@ from app.routers.admin import (
     academic_terms,
     users,          
     import_data,
+    training_data_imports,
     survey_templates,  
     survey_campaigns,  
     survey_progress,    
@@ -78,6 +79,7 @@ app.include_router(course_sections.router)
 app.include_router(academic_terms.router)
 app.include_router(users.router)       
 app.include_router(import_data.router) 
+app.include_router(training_data_imports.router)
 app.include_router(survey_templates.router)
 app.include_router(survey_campaigns.router)
 app.include_router(survey_progress.router)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Database,
   Building2,
@@ -17,8 +17,31 @@ import {
   X,
   ChevronRight,
   Filter,
+  UploadCloud,
+  Download,
 } from 'lucide-react';
 import axiosClient from '../../api/axiosClient';
+
+const IMPORT_COLUMN_HINTS = {
+  lecturers: 'Mã giảng viên, Họ và tên giảng viên, Email, Số điện thoại, Mã khoa',
+  courses: 'Mã học phần, Tên học phần, Mô tả',
+  course_sections: 'Mã lớp học phần, Mã học phần, Mã giảng viên, Mã học kỳ',
+};
+
+const IMPORT_FILE_NAMES = {
+  lecturers: {
+    template: 'Mẫu_dữ_liệu_giảng_viên.xlsx',
+    errors: 'Lỗi_import_giảng_viên.csv',
+  },
+  courses: {
+    template: 'Mẫu_dữ_liệu_học_phần.xlsx',
+    errors: 'Lỗi_import_học_phần.csv',
+  },
+  course_sections: {
+    template: 'Mẫu_dữ_liệu_lớp_học_phần.xlsx',
+    errors: 'Lỗi_import_lớp_học_phần.csv',
+  },
+};
 
 // Danh sách 6 danh mục đào tạo
 const TABS = [
@@ -101,6 +124,10 @@ export default function TrainingDataPage() {
 
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success' | 'error', message: '' }
+  const [importing, setImporting] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const importFileInputRef = useRef(null);
 
   // State quản lý Modal Thêm / Sửa
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -325,6 +352,108 @@ export default function TrainingDataPage() {
     }
   };
 
+  const handleImportFileChange = async (e) => {
+    const selectedFile = e.target.files?.[0];
+    e.target.value = '';
+    if (!selectedFile) return;
+
+    const category = activeTabId;
+    if (!IMPORT_COLUMN_HINTS[category]) return;
+    if (!/\.(csv|xlsx|xls)$/i.test(selectedFile.name)) {
+      setToast({ type: 'error', message: 'Chỉ hỗ trợ file .csv, .xlsx hoặc .xls.' });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const result = await axiosClient.post(
+        `/admin/training-data/import/${category}`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      setImportResult({ ...result, category });
+      setToast({
+        type: result.error_rows > 0 ? 'error' : 'success',
+        message: `Đã thêm ${result.imported_rows}/${result.total_rows} dòng. ${
+          result.error_rows > 0
+            ? `${result.error_rows} dòng cần kiểm tra; tải CSV lỗi bên dưới.`
+            : 'Không có dòng lỗi.'
+        }`,
+      });
+      await Promise.all([fetchCategoryData(category), fetchReferenceData()]);
+    } catch (err) {
+      console.error('Lỗi import dữ liệu đào tạo:', err);
+      setToast({
+        type: 'error',
+        message: err.response?.data?.detail || 'Không thể import file Excel.',
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    const category = activeTabId;
+    if (!IMPORT_COLUMN_HINTS[category]) return;
+
+    setDownloadingTemplate(true);
+    try {
+      const file = await axiosClient.get(
+        `/admin/training-data/import/templates/${category}`,
+        { responseType: 'blob' }
+      );
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = IMPORT_FILE_NAMES[category].template;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setToast({ type: 'success', message: 'Đã tải file Excel mẫu.' });
+    } catch (err) {
+      console.error('Lỗi tải file Excel mẫu:', err);
+      setToast({
+        type: 'error',
+        message: err.response?.data?.detail || 'Không thể tải file Excel mẫu.',
+      });
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  };
+
+  const handleDownloadImportErrors = () => {
+    if (!importResult?.errors?.length) return;
+
+    const sourceHeaders = Object.keys(importResult.errors[0].values);
+    const escapeCsv = (value) => {
+      const text = String(value ?? '');
+      const safeText = /^[\s]*[=+\-@]/.test(text) ? `'${text}` : text;
+      return `"${safeText.replace(/"/g, '""')}"`;
+    };
+    const rows = [
+      ['Dòng', ...sourceHeaders, 'Lỗi'],
+      ...importResult.errors.map((item) => [
+        item.row,
+        ...sourceHeaders.map((header) => item.values[header] || ''),
+        item.error,
+      ]),
+    ];
+    const csvContent = '\uFEFF' + rows.map((row) => row.map(escapeCsv).join(',')).join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = IMPORT_FILE_NAMES[importResult.category].errors;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   // Tra cứu tên khoa theo faculty_id
   const getFacultyName = (facultyId) => {
     const f = (dataMap.faculties || []).find((fac) => fac && fac.faculty_id === Number(facultyId));
@@ -353,6 +482,37 @@ export default function TrainingDataPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            {IMPORT_COLUMN_HINTS[activeTabId] && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  disabled={downloadingTemplate}
+                  title={`Tải file Excel mẫu gồm: ${IMPORT_COLUMN_HINTS[activeTabId]}`}
+                  className="flex items-center gap-1.5 rounded-xl bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 disabled:opacity-50"
+                >
+                  <Download size={14} className={downloadingTemplate ? 'animate-pulse' : ''} />
+                  <span>{downloadingTemplate ? 'Đang tải mẫu...' : 'Tải file mẫu'}</span>
+                </button>
+                <input
+                  ref={importFileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  className="hidden"
+                  onChange={handleImportFileChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => importFileInputRef.current?.click()}
+                  disabled={importing}
+                  title={`Cột file: ${IMPORT_COLUMN_HINTS[activeTabId]}`}
+                  className="flex items-center gap-1.5 rounded-xl bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 disabled:opacity-50"
+                >
+                  <UploadCloud size={14} className={importing ? 'animate-pulse' : ''} />
+                  <span>{importing ? 'Đang import...' : 'Import CSV/Excel'}</span>
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -387,7 +547,10 @@ export default function TrainingDataPage() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTabId(tab.id)}
+                onClick={() => {
+                  setActiveTabId(tab.id);
+                  setImportResult(null);
+                }}
                 className={`flex flex-col rounded-xl p-3 text-left transition-all ${
                   isActive
                     ? 'bg-white text-[#002060] shadow-md ring-2 ring-amber-400 scale-[1.02]'
@@ -432,6 +595,23 @@ export default function TrainingDataPage() {
             className="text-slate-400 hover:text-slate-600"
           >
             <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {importResult?.category === activeTabId && importResult.error_rows > 0 && (
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            File có {importResult.error_rows} dòng chưa được nhập. Tải danh sách lỗi, chỉnh sửa
+            các dòng đó rồi import lại.
+          </span>
+          <button
+            type="button"
+            onClick={handleDownloadImportErrors}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-amber-600 px-3.5 py-2 font-bold text-white transition hover:bg-amber-700"
+          >
+            <Download size={14} />
+            Tải CSV dòng lỗi
           </button>
         </div>
       )}
@@ -484,6 +664,18 @@ export default function TrainingDataPage() {
 
         <div className="text-right text-[11px] font-semibold text-slate-500">
           Hiển thị: <span className="font-bold text-[#002060]">{filteredList.length}</span> / {dataMap[activeTabId]?.length || 0} bản ghi
+          {IMPORT_COLUMN_HINTS[activeTabId] && (
+            <>
+              <div className="mt-1 font-normal text-slate-400">
+                Cột file: {IMPORT_COLUMN_HINTS[activeTabId]}
+              </div>
+              {activeTabId === 'lecturers' && (
+                <div className="mt-1 font-normal text-slate-400">
+                  Số điện thoại có thể để trống; mẫu Excel định dạng cột này là văn bản để giữ số 0 đầu.
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 

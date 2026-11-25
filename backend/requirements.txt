@@ -12,6 +12,7 @@ pandas>=3.0.0
 scikit-learn>=1.9.0
 underthesea>=9.5.0
 openpyxl>=3.1.0
+xlrd>=2.0.1
 
 # Hỗ trợ upload form-data / file
 python-multipart>=0.0.32

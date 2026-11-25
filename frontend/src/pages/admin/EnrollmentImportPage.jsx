@@ -372,12 +372,11 @@ export default function EnrollmentImportPage() {
               className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:underline"
             >
               <Download size={14} />
-              <span>Tải tệp mẫu CSV chuẩn TVU ĐBCL</span>
+              <span>Tải tệp mẫu tại đây</span>
             </button>
           </div>
           <p className="text-xs text-slate-500">
-            File gồm MSSV (student_id) và mã lớp học phần (section_id). Học kỳ được xác định
-            tự động từ lớp học phần đã có; mỗi file chỉ nhập dữ liệu của một học kỳ.
+            Lưu ý: Mỗi học kỳ chỉ có duy nhất một đợt nhập dữ liệu đăng ký
           </p>
         </div>
       )}

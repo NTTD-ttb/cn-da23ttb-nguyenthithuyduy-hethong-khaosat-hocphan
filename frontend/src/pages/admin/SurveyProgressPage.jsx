@@ -259,22 +259,15 @@ export default function SurveyProgressPage() {
         <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300 ring-1 ring-emerald-400/30">
-                <Radio size={14} className="animate-pulse text-emerald-400" />
-                <span>GIÁM SÁT TIẾN ĐỘ THỜI GIAN THỰC</span>
-              </span>
-              <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-blue-200">
-                Live Pulse
-              </span>
+             
+              
             </div>
 
             <h1 className="text-2xl font-black tracking-tight sm:text-3xl text-white">
-              Trung Tâm Giám Sát Tiến Độ Khảo Sát
+              Tiến Độ Khảo Sát
             </h1>
 
-            <p className="max-w-2xl text-xs sm:text-sm text-blue-100/90 leading-relaxed">
-              Theo dõi trực tiếp tỷ lệ hoàn thành phiếu đánh giá giảng viên theo từng khoa, từng lớp học phần và gửi thông báo đôn đốc sinh viên nộp bài đúng hạn.
-            </p>
+            
           </div>
 
           {/* CỤM NÚT ĐIỀU KHIỂN & CHỌN ĐỢT KHẢO SÁT */}

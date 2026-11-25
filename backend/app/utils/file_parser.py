@@ -27,7 +27,7 @@ def read_uploaded_file(file: UploadFile, file_bytes: bytes) -> list[dict]:
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Định dạng file không hỗ trợ! Vui lòng chỉ tải lên file .csv hoặc .xlsx."
+                detail="Định dạng file không hỗ trợ! Vui lòng chỉ tải lên file .csv, .xlsx hoặc .xls."
             )
     except Exception as e:
         if isinstance(e, HTTPException):
