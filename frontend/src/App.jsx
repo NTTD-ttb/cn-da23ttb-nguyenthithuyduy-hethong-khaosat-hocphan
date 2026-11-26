@@ -19,6 +19,7 @@ import EnrollmentImportPage from './pages/admin/EnrollmentImportPage';
 import SurveyCampaignPage from './pages/admin/SurveyCampaignPage';
 import SurveyProgressPage from './pages/admin/SurveyProgressPage';
 import SupportRequestPage from './pages/admin/SupportRequestPage';
+import NlpAnalysisPage from './pages/admin/NlpAnalysisPage';
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
               <Route path="/admin/enrollment-import" element={<EnrollmentImportPage />} />
               <Route path="/admin/campaigns" element={<SurveyCampaignPage />} />
               <Route path="/admin/progress" element={<SurveyProgressPage />} />
+              <Route path="/admin/nlp-analysis" element={<NlpAnalysisPage />} />
               <Route path="/admin/support-requests" element={<SupportRequestPage />} />
             </Route>
           </Route>

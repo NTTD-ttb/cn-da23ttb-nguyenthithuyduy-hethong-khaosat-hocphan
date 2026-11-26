@@ -2,7 +2,7 @@
 
 from typing import Any
 from fastapi import APIRouter, Depends, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ from app.models.import_batch import CourseEnrollment
 from app.models.course import CourseSection, Course
 from app.models.lecturer import Lecturer
 from app.nlp.pipeline import analyze_campaign_feedbacks
+from app.services import nlp_analytics_service
 
 router = APIRouter(prefix="/admin/nlp", tags=["Admin - Phân tích NLP Thông minh"])
 
@@ -51,6 +52,61 @@ class TopicStatsResponse(BaseModel):
     details: list[TopicStatItem]
 
 
+class TopicSentimentItem(BaseModel):
+    topic_code: str
+    topic_name: str
+    total_mentions: int
+    details: list[SentimentStatItem]
+
+
+class CourseNlpSummary(BaseModel):
+    course_id: int
+    course_code: str
+    course_name: str
+    lecturers: list[str]
+    total_comments: int
+    analyzed_comments: int
+    negative_percentage: float
+    teaching_comments: int
+    teaching_negative_percentage: float
+    sentiment_counts: dict[str, int]
+    top_topics: list[TopicStatItem]
+
+
+class CourseLecturerNlpSummary(BaseModel):
+    course_id: int
+    course_code: str
+    course_name: str
+    lecturer_id: int
+    lecturer_name: str
+    total_comments: int
+    analyzed_comments: int
+    negative_percentage: float
+    teaching_comments: int
+    teaching_negative_percentage: float
+    sentiment_counts: dict[str, int]
+    top_topics: list[TopicStatItem]
+
+
+class NlpAnalyticsResponse(BaseModel):
+    campaign_id: int
+    course_id: int | None
+    total_comments: int
+    analyzed_comments: int
+    pending_comments: int
+    sentiment_details: list[SentimentStatItem]
+    topic_details: list[TopicStatItem]
+    topic_sentiments: list[TopicSentimentItem]
+    courses: list[CourseNlpSummary]
+    course_lecturers: list[CourseLecturerNlpSummary]
+
+
+class TopicConfidenceItem(BaseModel):
+    topic_code: str
+    topic_name: str
+    confidence: float | None
+
+
 class FeedbackDetailItem(BaseModel):
     analysis_id: int
     original_text: str
@@ -60,6 +116,57 @@ class FeedbackDetailItem(BaseModel):
     topics: list[str]
     course_name: str
     lecturer_name: str
+    topic_details: list[TopicConfidenceItem] = Field(default_factory=list)
+    course_id: int | None = None
+    course_code: str | None = None
+    section_code: str | None = None
+
+
+class FeedbackSearchResponse(BaseModel):
+    total: int
+    items: list[FeedbackDetailItem]
+
+
+@router.get(
+    "/analytics",
+    response_model=NlpAnalyticsResponse,
+    summary="Tổng hợp NLP theo đợt khảo sát và học phần",
+)
+def get_nlp_analytics(
+    campaign_id: int = Query(..., ge=1, description="Đợt khảo sát"),
+    course_id: int | None = Query(None, ge=1, description="Lọc theo học phần"),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    return nlp_analytics_service.get_campaign_analytics(db, campaign_id, course_id)
+
+
+@router.get(
+    "/feedback-search",
+    response_model=FeedbackSearchResponse,
+    summary="Tìm kiếm và phân trang nhận xét đã phân tích",
+)
+def search_nlp_feedback(
+    campaign_id: int = Query(..., ge=1, description="Đợt khảo sát"),
+    course_id: int | None = Query(None, ge=1, description="Lọc theo học phần"),
+    sentiment: str | None = Query(None, description="positive, neutral hoặc negative"),
+    topic: str | None = Query(None, description="Mã chủ đề"),
+    search: str | None = Query(None, max_length=300, description="Tìm trong nội dung nhận xét"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    return nlp_analytics_service.search_feedback(
+        db=db,
+        campaign_id=campaign_id,
+        course_id=course_id,
+        sentiment=sentiment,
+        topic=topic,
+        search=search,
+        skip=skip,
+        limit=limit,
+    )
 
 
 # --- 1. API KÍCH HOẠT PHÂN TÍCH HÀNG LOẠT ---
